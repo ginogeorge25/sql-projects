@@ -77,7 +77,10 @@ insert into @target_data values
 	--, ('plan_claim_line', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
 	--, ('plan_claim_rx', 'fill_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
 	--, ('plan_claim_rx', 'paid_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_rx', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	--, ('plan_claim_rx', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	--, ('plan_member', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	--, ('plan_member_elig', 'start_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	--, ('plan_member_elig', 'end_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
 
 
 ------------------------------END EDIT SECTION------------------------------		
