@@ -17,7 +17,7 @@
 ------------------------------------------------------------		
 --Use the same @site_id to declare clinical orig_site_id and orig_source_id for Plan.
 
-declare @site_id int = '4' 
+declare @site_id int = '17' 
 declare @target_data table		
 	(	
 	table_name varchar(255),	
@@ -37,52 +37,55 @@ insert into @target_data values
 
 
 --Clinical tables
-	('t_allergy', 'allergy_start_date', 'allergy_modify_timestamp', 'allergy_loaded_from_file', 'allergy_orig_site_id', 'allergy_delete_ind'),
-	('t_allergy', 'allergy_stopped_date', 'allergy_modify_timestamp', 'allergy_loaded_from_file', 'allergy_orig_site_id', 'allergy_delete_ind'),
-	('t_appointment', 'appt_date','appt_modify_timestamp','appt_loaded_from_file','appt_orig_site_id','appt_delete_ind'),	
-	('t_assessment', 'assessment_date','modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_chargecapture', 'cc_date_of_service','cc_modify_timestamp','cc_loaded_from_file', 'cc_orig_site_id','cc_delete_ind'),	
-	('t_encounter', 'enc_timestamp', 'enc_modify_timestamp','enc_loaded_from_file','enc_orig_site_id','enc_delete_ind'),	
-	('t_immunization', 'completed_date','modify_timestamp','loaded_from_file', 'orig_site_id','delete_ind'),	
-	('t_maintenance', 'maint_completed_date', 'maint_modify_timestamp','maint_loaded_from_file','maint_orig_site_id','maint_delete_ind'),	
-	('t_medicationlist', 'start_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_medicationlist', 'stop_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_order', 'ordered_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_order', 'result_received_date', 'modify_timestamp', 'loaded_from_file','orig_site_id','delete_ind'),	
-	('t_patient', 'pat_create_timestamp', 'pat_modify_timestamp','pat_loaded_from_file','pat_orig_site_id', 'pat_delete_ind'),	
-	('t_payer', 'policy_start_dt', 'modify_timestamp','payer_loaded_from_file','payer_orig_site_id','payer_delete_ind'),	
-	('t_prescription', 'prescription_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_problem', 'onset_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_problem', 'resolved_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),
-	('Provider_master','prov_updated_timestamp','prov_modify_timestamp','prov_loaded_from_file','prov_orig_site_id','prov_delete_ind'),
-	('t_result', 'collection_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
-	('t_vitals', 'vitals_date', 'vitals_modify_timestamp','vitals_loaded_from_file','vitals_orig_site_id','vitals_delete_ind')	
+	--('t_allergy', 'allergy_start_date', 'allergy_modify_timestamp', 'allergy_loaded_from_file', 'allergy_orig_site_id', 'allergy_delete_ind'),
+	--('t_allergy', 'allergy_stopped_date', 'allergy_modify_timestamp', 'allergy_loaded_from_file', 'allergy_orig_site_id', 'allergy_delete_ind'),
+	--('t_appointment', 'appt_date','appt_modify_timestamp','appt_loaded_from_file','appt_orig_site_id','appt_delete_ind'),	
+	--('t_assessment', 'assessment_date','modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_chargecapture', 'cc_date_of_service','cc_modify_timestamp','cc_loaded_from_file', 'cc_orig_site_id','cc_delete_ind'),	
+	--('t_encounter', 'enc_timestamp', 'enc_modify_timestamp','enc_loaded_from_file','enc_orig_site_id','enc_delete_ind'),	
+	--('t_immunization', 'completed_date','modify_timestamp','loaded_from_file', 'orig_site_id','delete_ind'),	
+	--('t_maintenance', 'maint_completed_date', 'maint_modify_timestamp','maint_loaded_from_file','maint_orig_site_id','maint_delete_ind'),	
+	--('t_medicationlist', 'start_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_medicationlist', 'stop_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_order', 'ordered_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_order', 'result_received_date', 'modify_timestamp', 'loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_patient', 'pat_create_timestamp', 'pat_modify_timestamp','pat_loaded_from_file','pat_orig_site_id', 'pat_delete_ind'),	
+	--('t_payer', 'policy_start_dt', 'modify_timestamp','payer_loaded_from_file','payer_orig_site_id','payer_delete_ind'),	
+	--('t_prescription', 'prescription_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_problem', 'onset_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_problem', 'resolved_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),
+	--('Provider_master','prov_updated_timestamp','prov_modify_timestamp','prov_loaded_from_file','prov_orig_site_id','prov_delete_ind'),
+	--('t_result', 'collection_date', 'modify_timestamp','loaded_from_file','orig_site_id','delete_ind'),	
+	--('t_vitals', 'vitals_date', 'vitals_modify_timestamp','vitals_loaded_from_file','vitals_orig_site_id','vitals_delete_ind')	
 
 	--select * from Provider_Master
 
  --Plan tables
 
-	--,('plan_claim_header', 'discharge_date_unscrubbed', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
-	--, ('plan_claim_header', 'received_date','modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
-	--, ('plan_claim_header', 'service_from_date_unscrubbed', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
-	--, ('plan_claim_header', 'service_thru_date_unscrubbed', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')	
-	--, ('plan_claim_header', 'service_from_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')	
-	--, ('plan_claim_header', 'service_thru_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_header', 'admission_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_header', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_diagnosis', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_line', 'insert_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_line', 'service_from_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_line', 'service_thru_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_line', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_rx', 'fill_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_rx', 'paid_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_claim_rx', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
-	--, ('plan_member', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
-	--, ('plan_member_elig', 'start_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
-	--, ('plan_member_elig', 'end_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
-
-
+	  ('plan_claim_header', 'discharge_date_unscrubbed', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_claim_header', 'received_date','modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_claim_header', 'service_from_date_unscrubbed', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_claim_header', 'service_thru_date_unscrubbed', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')	
+	, ('plan_claim_header', 'service_from_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')	
+	, ('plan_claim_header', 'service_thru_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_header', 'admission_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_header', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_diagnosis', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_line', 'insert_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_line', 'service_from_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_line', 'service_thru_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_line', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_rx', 'fill_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_rx', 'paid_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_claim_rx', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_claim_rx', 'end_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_claim_rx', 'adjudication_date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_member', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')		
+	, ('plan_member_elig', 'start_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_member_elig', 'start_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_member_assignment', 'start_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_member_assignment ', 'end_Date', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
+	, ('plan_member_address', 'update_timestamp', 'modify_timestamp','loaded_from_file','orig_source_id','delete_ind')
 ------------------------------END EDIT SECTION------------------------------		
 		
 -------------------------------------------------------------------------------------		
@@ -131,15 +134,12 @@ begin
 		,''',@current_date_column_name,''' [Column]
 		,MAX(',@current_date_column_name,')[Business Date]
 		,MAX(',@current_modify_timestamp_column_name,')[Modify_Timestamp_Date]
-		,MAX(',@current_loaded_from_file_column_name,')[Loaded_From_File]
+		,(select MAX(',@current_loaded_from_file_column_name,') from ',@current_table_name,' where ',@current_date_column_name,' =(select max(',@current_date_column_name,') from ',@current_table_name,' where  ',@current_site_id_column_name,' = ',@site_id, 'and ',@delete_ind,' = ''n''))  [Loaded_From_File]
 		,count(',@current_date_column_name,') [Non-Null Rows], count(1) [Total Rows]
 		,format((cast(count(',@current_date_column_name,')as float) / nullif (count(1),0)),''P'') [Percentage]
-			from ',@current_table_name,
-			' where ',@current_site_id_column_name,' = ',@site_id, 'and ',@delete_ind,' = ''n'''
+			from ',@current_table_name,' 
+			where ',@current_site_id_column_name,' = ',@site_id, 'and ',@delete_ind,' = ''n'''
 
-
-
-			
 			
 		)
 	fetch next from table_cursor	
