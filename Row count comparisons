@@ -1,0 +1,244 @@
+DECLARE @preclient NVARCHAR(50), @postclient NVARCHAR(50),  @preevn NVARCHAR(50), @postevn NVARCHAR(50), @presource NVARCHAR(50), @postsource NVARCHAR(50),  @connectortype bit ;
+  
+-----------------------------EDIT BELOW INPUTS-----------------------------------------------------------
+/*
+                                   Plan & Clinical ROW COUNT - PROMOTION VALIDATION SCRIPT v1.0  -  ©2018 
+    Enter the client, source ,environments & connector type that you want to compare against
+
+  
+  
+    Run from OPS Server  (QDWSQLOPS01)
+*/
+SET @preClient=''           --Initial customer acronym
+SET @postClient=''          --Customer acronym for which fanout was enabled
+SET @preevn = ''               --Pre Environment
+SET @postevn =''               --Post Environment for testing
+SET @presource = ''            --Initial source acronym
+SET @postsource = ''           --Source acronym for which fanout was enabled  (/*Edit the customer name*/  use InformaticaConfig_Dev select Arc_Source_Acronym, Arc_Source_Name from Arc_Source s join Arc_Clients c on c.Arc_Client_ID = s.Arc_Client_ID where c.Arc_Client_Acronym = 'PDFMC')
+SET @connectortype = ''          -- Plan = '0' & Clinical = '1'
+ 
+-----------------------------------------------------------------------------------------------------------
+ 
+  
+ 
+/*Selecting pre-evn db details*/
+DECLARE @preserver NVARCHAR(50), @predb NVARCHAR(50), @presourcename NVARCHAR(255)
+SELECT @preserver =[server_name],@predb=[database_name], @presourcename=[sourcename]
+--SELECT *
+FROM (
+    SELECT a.server_name
+          ,a.database_name
+          ,a.db_env
+          ,a.arc_client
+          ,s.acronym
+          ,s.sourceName
+          ,row_number ( ) over (partition by [arc_client],[db_env] order by [most_recent_data_loaded_date] desc ) as rown
+      FROM [AnalyticsMonitoring].[dbo].[v_arc_servers_databases] a
+      JOIN [AnalyticsMonitoring].[dbo].[v_servers] b      on a.[server_name]=b.[srvname]
+      JOIN [AnalyticsMonitoring].[dbo].[v_source_updated] s on a.arc_client = s.client
+      and b.exclude_ind=0
+      and s.Acronym = @presource    
+  
+) a
+WHERE rown = 1
+and [arc_client]= @preclient
+and [db_env]= @preevn
+and [acronym] = @presource
+  
+/*Selecting post-evn db details*/
+DECLARE @postserver NVARCHAR(50), @postdb NVARCHAR(50), @postsourcename NVARCHAR(255)
+SELECT @postserver =[server_name],@postdb=[database_name], @postsourcename=[sourcename]
+--SELECT *
+FROM (
+    SELECT a.server_name
+          ,a.database_name
+          ,a.db_env
+          ,a.arc_client
+          ,s.acronym
+          ,s.sourceName
+          ,row_number ( ) over (partition by [arc_client],[db_env] order by [most_recent_data_loaded_date] desc ) as rown
+      FROM [AnalyticsMonitoring].[dbo].[v_arc_servers_databases] a
+      JOIN [AnalyticsMonitoring].[dbo].[v_servers] b      on a.[server_name]=b.[srvname]
+      JOIN [AnalyticsMonitoring].[dbo].[v_source_updated] s on a.arc_client = s.client
+      and b.exclude_ind=0
+      and s.Acronym = @postsource    
+  
+) a
+WHERE rown = 1
+and [arc_client]= @postclient
+and [db_env]= @postevn
+and [acronym] = @postsource
+  
+ /*pre & post Db path*/
+declare @SQLtoExecute NVARCHAR(MAX)
+declare @dbPathpre NVARCHAR(MAX)
+declare @dbPathpost NVARCHAR(MAX)
+  
+set @dbPathpre='['+@preserver+'].['+@predb+'].[dbo].'
+set @dbPathpost='['+@postserver+'].['+@postdb+'].[dbo].'
+  
+  
+  
+IF (Object_ID('tempdb..#tableCount') IS NOT NULL)
+    DROP TABLE #tableCount;
+      
+create table #tableCount (
+    [EnvType] Varchar(20),
+    [Env] varchar(100),
+    [source_name] varchar(1000),
+    [table] varchar(1000),
+    [count] int
+         
+)
+   
+ 
+ 
+If  @connectortype = '0'
+ 
+Begin
+set @SQLtoExecute='
+INSERT INTO #tableCount
+  
+--preenv
+select ''PRE'','''+@preevn+'''[Env],ps.source_desc,''billing_provider'' [Table], count(1) [Count] from '+@dbPathpre+'plan_billing_provider pbp with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on pbp.source_id= ps.source_id where pbp.delete_ind=''n''  and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''billing_provider_address'', count(1) from '+@dbPathpre+'plan_billing_provider_address bpa with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= bpa.source_id where bpa.delete_ind=''n''  and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''billing_provider_npi'', count(1) from '+@dbPathpre+'plan_billing_provider_npi pbpn with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pbpn.source_id where pbpn.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''claim_diagnosis'', count(1) from '+@dbPathpre+'plan_claim_diagnosis pcd with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pcd.source_id where pcd.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''claim_header'', count(1) from '+@dbPathpre+'plan_claim_header pch with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pch.source_id where pch.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''claim_line'', count(1) from '+@dbPathpre+'plan_claim_line pcl with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pcl.source_id where pcl.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''claim_rx'', count(1) from '+@dbPathpre+'plan_claim_rx pcr with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pcr.source_id where pcr.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''group'', count(1) from '+@dbPathpre+'plan_group pg with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pg.source_id where pg.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''lob'', count(1) from '+@dbPathpre+'plan_lob pl with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= pl.source_id where pl.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''location'', count(1) from '+@dbPathpre+'plan_location plo with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id= plo.source_id where plo.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''location_address'', count(1) from '+@dbPathpre+'plan_location_address pla with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pla.source_id where pla.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''member'', count(1) from '+@dbPathpre+'plan_member pm with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pm.source_id where pm.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''member_address'', count(1) from '+@dbPathpre+'plan_member_address pma with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pma.source_id where pma.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''member_assignment'', count(1) from '+@dbPathpre+'plan_member_assignment pma with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pma.source_id where pma.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''member_elig'', count(1) from '+@dbPathpre+'plan_member_elig pme with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pme.source_id where pme.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''payor'', count(1) from '+@dbPathpre+'plan_payor pp with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pp.source_id where pp.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''product'', count(1) from '+@dbPathpre+'plan_product pp with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pp.source_id where pp.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''provider'', count(1) from '+@dbPathpre+'plan_provider pp with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=pp.source_id where pp.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''provider_address'', count(1) from '+@dbPathpre+'plan_provider_address ppa with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=ppa.source_id where ppa.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''provider_contract'', count(1) from '+@dbPathpre+'plan_provider_contract ppc with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=ppc.source_id where ppc.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''site'', count(1) from '+@dbPathpre+'plan_site psi with (nolock) inner join '+@dbPathpre+'plan_source ps with (nolock) on ps.source_id=psi.source_id where psi.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+select ''PRE'','''+@preevn+''', ps.source_desc,''source'', count(1) from '+@dbPathpre+'plan_source ps with (nolock) where ps.delete_ind=''n'' and ps.source_desc = '''+@presourcename+'''   group by ps.source_desc union all
+ 
+--post env
+select ''POST'','''+@postevn+'''[Env],ps.source_desc,''billing_provider'' [Table], count(1) [Count] from '+@dbPathpost+' plan_billing_provider pbp with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on pbp.source_id= ps.source_id where pbp.delete_ind=''n''  and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''billing_provider_address'', count(1) from '+@dbPathpost+'plan_billing_provider_address bpa with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= bpa.source_id where bpa.delete_ind=''n''  and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''billing_provider_npi'', count(1) from '+@dbPathpost+'plan_billing_provider_npi pbpn with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pbpn.source_id where pbpn.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''claim_diagnosis'', count(1) from '+@dbPathpost+'plan_claim_diagnosis pcd with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pcd.source_id where pcd.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''claim_header'', count(1) from '+@dbPathpost+'plan_claim_header pch with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pch.source_id where pch.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''claim_line'', count(1) from '+@dbPathpost+'plan_claim_line pcl with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pcl.source_id where pcl.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''claim_rx'', count(1) from '+@dbPathpost+'plan_claim_rx pcr with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pcr.source_id where pcr.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''group'', count(1) from '+@dbPathpost+'plan_group pg with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pg.source_id where pg.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''lob'', count(1) from '+@dbPathpost+'plan_lob pl with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= pl.source_id where pl.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''location'', count(1) from '+@dbPathpost+'plan_location plo with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id= plo.source_id where plo.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''location_address'', count(1) from '+@dbPathpost+'plan_location_address pla with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pla.source_id where pla.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''member'', count(1) from '+@dbPathpost+'plan_member pm with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pm.source_id where pm.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''member_address'', count(1) from '+@dbPathpost+'plan_member_address pma with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pma.source_id where pma.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''member_assignment'', count(1) from '+@dbPathpost+'plan_member_assignment pma with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pma.source_id where pma.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''member_elig'', count(1) from '+@dbPathpost+'plan_member_elig pme with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pme.source_id where pme.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''payor'', count(1) from '+@dbPathpost+'plan_payor pp with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pp.source_id where pp.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''product'', count(1) from '+@dbPathpost+'plan_product pp with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pp.source_id where pp.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''provider'', count(1) from '+@dbPathpost+'plan_provider pp with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=pp.source_id where pp.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''provider_address'', count(1) from '+@dbPathpost+'plan_provider_address ppa with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=ppa.source_id where ppa.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''provider_contract'', count(1) from '+@dbPathpost+'plan_provider_contract ppc with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=ppc.source_id where ppc.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''provider_language'', count(1) from '+@dbPathpost+'plan_provider_language ppl with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=ppl.source_id where ppl.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''site'', count(1) from '+@dbPathpost+'plan_site psi with (nolock) inner join '+@dbPathpost+'plan_source ps with (nolock) on ps.source_id=psi.source_id where psi.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc union all
+select ''POST'','''+@postevn+''', ps.source_desc,''source'', count(1) from '+@dbPathpost+'plan_source ps with (nolock) where ps.delete_ind=''n'' and ps.source_desc = '''+@postsourcename+'''   group by ps.source_desc
+  
+'
+ 
+END
+Else
+BEGIN
+ 
+set @SQLtoExecute='
+INSERT INTO #tableCount
+ 
+--preenv
+select ''PRE'','''+@preevn+'''[Env],s.site_Center_name,''Allergy'' [Table], count(1) [Count] from '+@dbPathpre+' t_allergy with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= t_allergy.allergy_orig_site_id where allergy_delete_ind=''n''  and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Appointment'', count(1) from '+@dbPathpre+'t_appointment with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= t_appointment.appt_orig_site_id where appt_delete_ind=''n''  and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Assessment'', count(1) from '+@dbPathpre+'t_assessment with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Charge Capture'', count(1) from '+@dbPathpre+'t_chargecapture with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id=cc_orig_site_id where cc_delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Contact Info'', count(1) from '+@dbPathpre+'t_contactinfo with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Encounter'', count(1) from '+@dbPathpre+'t_encounter with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= enc_orig_site_id where enc_delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Immunization'', count(1) from '+@dbPathpre+'t_immunization with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Maintenance'', count(1) from '+@dbPathpre+'t_maintenance with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= maint_orig_site_id where maint_delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Medication List'', count(1) from '+@dbPathpre+'t_medicationlist with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind =''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Order'', count(1) from '+@dbPathpre+'t_order with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Patient'', count(1) from '+@dbPathpre+'t_patient with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= pat_orig_site_id where pat_delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Payer'', count(1) from '+@dbPathpre+'t_payer with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= payer_orig_site_id where payer_delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Prescription'', count(1) from '+@dbPathpre+'t_prescription with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Problem'', count(1) from '+@dbPathpre+'t_problem with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Result'', count(1) from '+@dbPathpre+'t_result with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id=orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Vitals'', count(1) from '+@dbPathpre+'t_vitals with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= vitals_orig_site_id where vitals_delete_ind=''n'' and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+select ''PRE'','''+@preevn+''', s.site_Center_name,''Provider Master'', count(1) from '+@dbPathpre+'provider_master with (nolock) inner join '+@dbPathpre+'Site_Master s with (nolock) on s.site_orig_site_id= prov_orig_site_id where prov_delete_ind=''n''and s.site_center_name = '''+@presourcename+'''   group by s.site_Center_name union all
+ 
+--post env
+select ''POST'','''+@postevn+'''[Env], s.site_Center_name,''Allergy'' [Table], count(1) [Count] from '+@dbPathpost+' t_allergy with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= t_allergy.allergy_orig_site_id where allergy_delete_ind=''n''  and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Appointment'', count(1) from '+@dbPathpost+'t_appointment with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= t_appointment.appt_orig_site_id where appt_delete_ind=''n''  and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Assessment'', count(1) from '+@dbPathpost+'t_assessment with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Charge Capture'', count(1) from '+@dbPathpost+'t_chargecapture with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id=cc_orig_site_id where cc_delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Contact Info'', count(1) from '+@dbPathpost+'t_contactinfo with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Encounter'', count(1) from '+@dbPathpost+'t_encounter with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= enc_orig_site_id where enc_delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Immunization'', count(1) from '+@dbPathpost+'t_immunization with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Maintenance'', count(1) from '+@dbPathpost+'t_maintenance with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= maint_orig_site_id where maint_delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Medication List'', count(1) from '+@dbPathpost+'t_medicationlist with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind =''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Order'', count(1) from '+@dbPathpost+'t_order with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Patient'', count(1) from '+@dbPathpost+'t_patient with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= pat_orig_site_id where pat_delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Payer'', count(1) from '+@dbPathpost+'t_payer with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= payer_orig_site_id where payer_delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Prescription'', count(1) from '+@dbPathpost+'t_prescription with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Problem'', count(1) from '+@dbPathpost+'t_problem with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Result'', count(1) from '+@dbPathpost+'t_result with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id=orig_site_id where delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Vitals'', count(1) from '+@dbPathpost+'t_vitals with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= vitals_orig_site_id where vitals_delete_ind=''n'' and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name union all
+select ''POST'','''+@postevn+''', s.site_Center_name,''Provider Master'', count(1) from '+@dbPathpost+'provider_master with (nolock) inner join '+@dbPathpost+'Site_Master s with (nolock) on s.site_orig_site_id= prov_orig_site_id where prov_delete_ind=''n''and s.site_center_name = '''+@postsourcename+'''   group by s.site_Center_name
+'
+END
+ 
+ 
+DECLARE @sys_usr char(500)  = REPLACE(SYSTEM_USER,'ARCADIAHOSTED\','')
+DECLARE @timeRun datetime = GETDATE();
+ 
+  
+EXECUTE sp_executesql @SQLtoExecute
+ 
+IF (SELECT COUNT(*) FROM #tableCount)=0 BEGIN               RAISERROR('??? No results. Check that your CLIENT and ENV paramters are set correctly. Ensure the server is on. Servers currently linked can be found here: [dbo].[v_servers]', 16, 1) END
+ELSE
+BEGIN
+    INSERT INTO [AnalyticsMonitoring].[quality].[row_counts] ([client],[env],[server] ,[db],[source_name],[table],[count],[user],[insert_timestamp])
+    SELECT @preclient as [client] , @preevn  as [env] , @preserver as [server] , @predb  as [db], tc.[source_name], tc.[table],tc.[count], @sys_usr as [user], @timeRun as [insert_timestamp]  FROM #tableCount tc where tc.Env = @preevn and tc.EnvType='Pre'
+         
+    INSERT INTO [AnalyticsMonitoring].[quality].[row_counts] ([client],[env],[server] ,[db],[source_name],[table],[count],[user],[insert_timestamp])
+    SELECT @postclient as [client] ,@postevn  as [env] ,@postserver as [server] ,@postdb  as [db], tc.[source_name], tc.[table],tc.[count], @sys_usr as [user], @timeRun as [insert_timestamp]  FROM #tableCount tc where tc.Env = @postevn and tc.EnvType='Post'
+END
+  
+----------------------------Comparision query ----------------------------------------------------------------------------------------------------------------------
+ 
+SELECT
+    rc.client[Pre Customer], rc.source_name[Pre Source], rc.env [Preenv], rc.[table][Table], rc.count [Precount],
+    rc1.client[Post Customer], rc1.source_name[Post Source], rc1.env [Postenv],  rc1.[table][Table], rc1.count[Postcount], (rc1.count - rc.count) as Delta,
+    cast(cast((cast(rc1.count-rc.count as float))*100 / nullif(rc.count,0) as decimal(38,2)) as nvarchar(50))+ ' %' as PerctDiff
+ 
+ FROM
+    [AnalyticsMonitoring].[quality].row_counts rc
+    join  [AnalyticsMonitoring].[quality].row_counts rc1 on  rc.[table] = rc1.[table]
+     
+   
+ where rc.client = @preclient
+    and rc1.client = @postclient
+    and rc.env = @preevn
+    and rc1.env = @postevn
+    and rc.source_name = @presourcename
+    and rc1.source_name = @postsourcename
+    and rc.insert_timestamp = @timeRun
+    and rc1.insert_timestamp = @timeRun
+    and rc.[user] = @sys_usr
+    and rc1.[user] = @sys_usr
+ group by rc.client, rc1.client, rc.env, rc.source_name, rc.[table], rc.count ,
+ rc1.env , rc1.source_name, rc1.[table], rc1.count, (rc.count - rc1.count)
+ 
+ 
+ 
+END
